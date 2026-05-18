@@ -1,2 +1,12 @@
 # BIDS_minimize
-One principle of BIDS is filename distinctness. Here the tool asks : what is the minimal information needed for distinguish files? this means, no ses- or run- if not needed, possibly limit acq- and dir- as well, etc 
+
+Schema-driven BIDS filename minimizer.
+
+This tool scans a BIDS tree recursively, loads the latest schema from `https://jsr.io/@bids/schema` (with a GitHub fallback when JSR is unavailable), and removes non-mandatory filename entities while preserving unique filenames.
+
+## Usage
+
+```bash
+python bids_minimize.py /path/to/bids_dataset
+python bids_minimize.py /path/to/bids_dataset --dry-run
+```

@@ -75,7 +75,7 @@ class FileRecord:
 
 
 def _fetch_bytes(url: str) -> bytes:
-    req = urllib.request.Request(url, headers={"User-Agent": "BIDS-minimize/1.0"})
+    req = urllib.request.Request(url, headers={"User-Agent": "bids-minimize/1.0"})
     with urllib.request.urlopen(req, timeout=30) as response:
         return response.read()
 
@@ -385,7 +385,7 @@ def _update_scans_tsv(root: Path, rename_map: dict[Path, Path], dry_run: bool) -
                     updated_lines.append(line)
                     continue
                 rel_filename = cols[idx]
-                normalized_rel = rel_filename.replace("/", os.sep).replace("\\", os.sep)
+                normalized_rel = os.path.normpath(rel_filename)
                 abs_filename = (scans_path.parent / normalized_rel).resolve()
                 if abs_filename in rename_map:
                     new_abs = rename_map[abs_filename]

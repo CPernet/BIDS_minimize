@@ -81,8 +81,8 @@ class BidsMinimizeTests(unittest.TestCase):
                 func_dir / "sub-01_task-rest_acq-B_run-2_bold.nii.gz",
                 func_dir / "sub-01_task-rest_acq-C_run-3_bold.nii.gz",
             ]
-            for idx, file in enumerate(files):
-                file.write_bytes(str(idx).encode("utf-8"))
+            for idx, file_path in enumerate(files):
+                file_path.write_bytes(str(idx).encode("utf-8"))
 
             required = {"bold": {"sub", "task"}}
             with patch.object(bids_minimize, "build_required_entities_by_suffix", return_value=required):

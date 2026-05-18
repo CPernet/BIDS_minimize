@@ -15,6 +15,11 @@ class BidsMinimizeTests(unittest.TestCase):
         self.assertEqual(suffix, "bold")
         self.assertEqual(extension, ".nii.gz")
 
+    def test_parse_bids_filename_rejects_invalid_names(self):
+        self.assertIsNone(bids_minimize.parse_bids_filename("not_bids_name.nii.gz"))
+        self.assertIsNone(bids_minimize.parse_bids_filename("sub-01_task-rest.nii.gz"))
+        self.assertIsNone(bids_minimize.parse_bids_filename("sub-01_task-rest_run-1_bold"))
+
     def test_minimize_removes_non_required_entities_and_updates_scans(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -64,6 +69,28 @@ class BidsMinimizeTests(unittest.TestCase):
             self.assertEqual(operations, [])
             self.assertTrue(run1.exists())
             self.assertTrue(run2.exists())
+
+    def test_collision_resolution_keeps_minimal_optional_entities(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            func_dir = root / "sub-01" / "func"
+            func_dir.mkdir(parents=True)
+
+            files = [
+                func_dir / "sub-01_task-rest_acq-A_run-1_bold.nii.gz",
+                func_dir / "sub-01_task-rest_acq-B_run-2_bold.nii.gz",
+                func_dir / "sub-01_task-rest_acq-C_run-3_bold.nii.gz",
+            ]
+            for idx, file in enumerate(files):
+                file.write_bytes(str(idx).encode("utf-8"))
+
+            required = {"bold": {"sub", "task"}}
+            with patch.object(bids_minimize, "build_required_entities_by_suffix", return_value=required):
+                bids_minimize.minimize_bids_filenames(root)
+
+            self.assertTrue((func_dir / "sub-01_task-rest_acq-A_bold.nii.gz").exists())
+            self.assertTrue((func_dir / "sub-01_task-rest_acq-B_bold.nii.gz").exists())
+            self.assertTrue((func_dir / "sub-01_task-rest_acq-C_bold.nii.gz").exists())
 
 
 if __name__ == "__main__":

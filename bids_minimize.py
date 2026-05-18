@@ -7,7 +7,7 @@ import json
 import os
 import re
 import tarfile
-import tempfile
+import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
@@ -75,7 +75,7 @@ class FileRecord:
 
 
 def _fetch_bytes(url: str) -> bytes:
-    req = urllib.request.Request(url, headers={"User-Agent": "BIDS_minimize/1.0"})
+    req = urllib.request.Request(url, headers={"User-Agent": "BIDS-minimize/1.0"})
     with urllib.request.urlopen(req, timeout=30) as response:
         return response.read()
 
@@ -151,7 +151,16 @@ def _load_schema_documents_from_github() -> dict[str, dict[str, Any]]:
 def load_schema_documents() -> dict[str, dict[str, Any]]:
     try:
         return _load_schema_documents_from_jsr()
-    except Exception:
+    except (
+        RuntimeError,
+        urllib.error.URLError,
+        TimeoutError,
+        json.JSONDecodeError,
+        tarfile.TarError,
+        yaml.YAMLError,
+        KeyError,
+        ValueError,
+    ):
         return _load_schema_documents_from_github()
 
 
@@ -340,17 +349,16 @@ def _execute_renames(rename_map: dict[Path, Path]) -> None:
     if not rename_map:
         return
 
-    with tempfile.TemporaryDirectory(prefix="bids-minimize-") as _:
-        temp_map: dict[Path, Path] = {}
-        for index, (src, dst) in enumerate(rename_map.items()):
-            if src == dst:
-                continue
-            temp_path = src.with_name(f"{src.name}.bidsmin-tmp-{index}")
-            os.replace(src, temp_path)
-            temp_map[temp_path] = dst
+    temp_map: dict[Path, Path] = {}
+    for index, (src, dst) in enumerate(rename_map.items()):
+        if src == dst:
+            continue
+        temp_path = src.with_name(f"{src.name}.bidsmin-tmp-{index}")
+        os.replace(src, temp_path)
+        temp_map[temp_path] = dst
 
-        for temp_path, dst in temp_map.items():
-            os.replace(temp_path, dst)
+    for temp_path, dst in temp_map.items():
+        os.replace(temp_path, dst)
 
 
 def _update_scans_tsv(root: Path, rename_map: dict[Path, Path], dry_run: bool) -> None:
@@ -377,7 +385,8 @@ def _update_scans_tsv(root: Path, rename_map: dict[Path, Path], dry_run: bool) -
                     updated_lines.append(line)
                     continue
                 rel_filename = cols[idx]
-                abs_filename = (scans_path.parent / rel_filename).resolve()
+                normalized_rel = rel_filename.replace("/", os.sep).replace("\\", os.sep)
+                abs_filename = (scans_path.parent / normalized_rel).resolve()
                 if abs_filename in rename_map:
                     new_abs = rename_map[abs_filename]
                     cols[idx] = os.path.relpath(new_abs, scans_path.parent).replace(os.sep, "/")
@@ -417,7 +426,7 @@ def main() -> int:
 
     operations = minimize_bids_filenames(args.bids_dir, dry_run=args.dry_run)
     if not operations:
-        print("No filenames required minimization.")
+        print("No filenames require minimization.")
         return 0
 
     for source, destination in operations:

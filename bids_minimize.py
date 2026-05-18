@@ -7,6 +7,7 @@ import json
 import os
 import re
 import tarfile
+import uuid
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -103,12 +104,12 @@ def _pick_latest_version(version_labels: list[str]) -> str:
 
 def _load_schema_documents_from_jsr() -> dict[str, dict[str, Any]]:
     registry = _fetch_json(BIDS_SCHEMA_JSR_PACKAGE_URL)
-    versions = registry.get("versions") or {}
+    versions = registry.get("versions", {})
     if not versions:
         raise RuntimeError("No versions were found in the JSR package metadata")
 
     latest_version = _pick_latest_version(list(versions.keys()))
-    dist = versions[latest_version].get("dist") or {}
+    dist = versions[latest_version].get("dist", {})
     tarball_url = dist.get("tarball")
     if not tarball_url:
         raise RuntimeError("JSR package metadata did not include a tarball URL")
@@ -350,10 +351,11 @@ def _execute_renames(rename_map: dict[Path, Path]) -> None:
         return
 
     temp_map: dict[Path, Path] = {}
+    nonce = uuid.uuid4().hex
     for index, (src, dst) in enumerate(rename_map.items()):
         if src == dst:
             continue
-        temp_path = src.with_name(f"{src.name}.bidsmin-tmp-{index}")
+        temp_path = src.with_name(f"{src.name}.bidsmin-tmp-{nonce}-{index}")
         os.replace(src, temp_path)
         temp_map[temp_path] = dst
 
